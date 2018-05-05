@@ -1,7 +1,7 @@
 (ns fc-rings.core
-  (:require [quil.core :as q]
-            [quil.middleware :as m]
-            [clojure.math.combinatorics :as combo])
+  (:require [clojure.math.combinatorics :as combo]
+            [quil.core :as q]
+            [quil.middleware :as m])
   (:gen-class))
 
 (set! *warn-on-reflection* true)
@@ -37,67 +37,76 @@
 
 (defn fractal-noise
   [sx sy sz]
-  (let [iter-fn     (fn [[x y z r amp]]
-                      [(* 2 x)
-                       (* 2 y)
-                       (* 2 z)
-                       (+ r (* (q/noise x y z)
-                               amp))
-                       (/ amp 2)])
-        start       [sx sy sz 0 1.0]
-        [_ _ _ r _] (nth (iterate iter-fn start) 3)]
-    r))
+  (let [iter-fn (fn [params octaves]
+                  (loop [[x y z r amp] params
+                         n             octaves]
+                    (if (zero? n)
+                      r
+                      (recur [(* 2 x)
+                              (* 2 y)
+                              (* 2 z)
+                              (+ r (* (q/noise x y z) amp))
+                              (/ amp 2)]
+                             (dec n)))))
+        start   [sx sy sz 0 1.0]]
+    (iter-fn start 4)))
+
+(defn fast-aset
+  [pixels idx col]
+  (let [^ints p pixels
+        ^int i  idx
+        ^int c  col]
+    (aset p i c)))
 
 (defn draw-state
   [{:keys [now dx dy dz] :as state}]
-  (let [^ints pixels (q/pixels)
-        coords       (combo/cartesian-product (range (q/width))
-                                              (range (q/height)))
-        z            (* now 0.00008)
-        hue          (* now 0.01)
-        saturation   (* 100
-                        (q/constrain
-                         (q/pow
-                          (* 1.15 (q/noise (* now 0.000122)))
-                          2.5)
-                         0 1))
-        scale        0.005
-        spacing      (* (- (q/noise (* now 0.000014))
-                           0.5)
-                        0.1)
-        centerx      (* (q/noise (* now 0.000125))
-                        1.25
-                        (q/width))
-        centery      (* (q/noise (* now -0.000125))
-                        1.25
-                        (q/height))]
+  (let [pixels     (q/pixels)
+        coords     (combo/cartesian-product (range (q/width))
+                                            (range (q/height)))
+        z          (* now 0.00008)
+        hue        (* now 0.01)
+        saturation (* 100
+                      (q/constrain
+                       (q/pow
+                        (* 1.15 (q/noise (* now 0.000122)))
+                        2.5)
+                       0 1))
+        scale      0.005
+        spacing    (* (- (q/noise (* now 0.000014))
+                         0.5)
+                      0.1)
+        centerx    (* (q/noise (* now 0.000125))
+                      1.25
+                      (q/width))
+        centery    (* (q/noise (* now -0.000125))
+                      1.25
+                      (q/height))]
     (run!
      (fn [[x y]]
-       (let [dist       (q/sqrt (+ (q/pow (- x centerx) 2)
-                                   (q/pow (- y centery) 2)))
-             pulse      (* (- (q/sin (+ dz (* dist spacing)))
-                              0.3)
-                           0.3)
-             n          (- (fractal-noise (+ dx (* x scale) pulse)
-                                          (+ dy (* y scale))
-                                          z)
-                           0.75)
-             m          (- (fractal-noise (+ dx (* x scale))
-                                          (+ dy (* y scale))
-                                          (+ z 10.0))
-                           0.75)
-             ^int idx   (+ x (* y (q/width)))
-             ^int color (q/color (mod (+ hue (* 40.0 m))
-                                      100)
-                                 saturation
-                                 (* 100.0
-                                    (q/constrain (q/pow (* 3.0 n) 1.5)
-                                                 0.0 0.9)))]
-         (aset pixels idx
-               color)))
+       (let [dist  (q/sqrt (+ (q/pow (- x centerx) 2)
+                              (q/pow (- y centery) 2)))
+             pulse (* (- (q/sin (+ dz (* dist spacing)))
+                         0.3)
+                      0.3)
+             n     (- (fractal-noise (+ dx (* x scale) pulse)
+                                     (+ dy (* y scale))
+                                     z)
+                      0.75)
+             m     (- (fractal-noise (+ dx (* x scale))
+                                     (+ dy (* y scale))
+                                     (+ z 10.0))
+                      0.75)
+             idx   (+ x (* y (q/width)))
+             color (q/color (mod (+ hue (* 40.0 m))
+                                 100)
+                            saturation
+                            (* 100.0
+                               (q/constrain (q/pow (* 3.0 n) 1.5)
+                                            0.0 0.9)))]
+         (fast-aset pixels idx color)))
      coords)
-    (println (q/current-frame-rate))
-    (q/update-pixels)))
+    (q/update-pixels)
+    (q/text (str (q/current-frame-rate)) 20 20)))
 
 (defn -main [& args]
   (q/defsketch fc-rings
