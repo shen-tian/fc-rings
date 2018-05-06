@@ -7,10 +7,10 @@
 (set! *warn-on-reflection* true)
 
 (def width 512)
-(def height 512)
+(def height 288)
 
-(def grid-x 16)
-(def grid-y 16)
+(def grid-x 8)
+(def grid-y 8)
 
 (defn setup []
   (q/frame-rate 30)
@@ -77,8 +77,7 @@
                         2.5)
                        0 1))
         scale      0.005
-        spacing    (* (- (q/noise (* now 0.000014))
-                         0.5)
+        spacing    (* (q/noise (* now 0.000124))
                       0.1)
         centerx    (* (q/noise (* now 0.000125))
                       1.25
