@@ -6,23 +6,21 @@
 
 (set! *warn-on-reflection* true)
 
-(def width 128)
-(def height 64)
+(def width 512)
+(def height 512)
+
+(def grid-x 16)
+(def grid-y 16)
 
 (defn setup []
-                                        ; Set frame rate to 30 frames per second.
   (q/frame-rate 30)
-                                        ; Set color mode to HSB (HSV) instead of default RGB.
   (q/color-mode :hsb 100.0)
-                                        ; setup function returns initial state. It contains
-                                        ; circle color and position.
   {:now 0
-   :dx         0
-   :dy         0
-   :dz         0})
+   :dx  0
+   :dy  0
+   :dz  0})
 
 (defn update-state [state]
-                                        ; Update sketch state by changing circle color and position.
   (let [now    (q/millis)
         speed  0.002
         zspeed 0.1
@@ -51,6 +49,14 @@
         start   [sx sy sz 0 1.0]]
     (iter-fn start 4)))
 
+(defn render-grid
+  []
+  (let [x-count (/ (q/width) grid-x)
+        y-count (/ (q/height) grid-y)]
+    (combo/cartesian-product
+     (map #(int (* (+ % 0.5) (/ (q/width) x-count))) (range x-count))
+     (map #(int (* (+ % 0.5) (/ (q/height) y-count))) (range y-count)))))
+
 (defn fast-aset
   [pixels idx col]
   (let [^ints p pixels
@@ -60,9 +66,8 @@
 
 (defn draw-state
   [{:keys [now dx dy dz] :as state}]
-  (let [pixels     (q/pixels)
-        coords     (combo/cartesian-product (range (q/width))
-                                            (range (q/height)))
+  (q/background 0)
+  (let [coords     (render-grid)
         z          (* now 0.00008)
         hue        (* now 0.01)
         saturation (* 100
@@ -103,9 +108,14 @@
                             (* 100.0
                                (q/constrain (q/pow (* 3.0 n) 1.5)
                                             0.0 0.9)))]
-         (fast-aset pixels idx color)))
+         (q/fill color)
+         (q/stroke 0 0 0 20)
+         (q/rect (- x (/ grid-x 2))
+                 (- y (/ grid-y 2))
+                 grid-x
+                 grid-y)))
      coords)
-    (q/update-pixels)
+    (q/fill 100)
     (q/text (str (q/current-frame-rate)) 20 20)))
 
 (defn -main [& args]
