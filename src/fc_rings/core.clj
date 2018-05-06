@@ -1,5 +1,6 @@
 (ns fc-rings.core
   (:require [clojure.math.combinatorics :as combo]
+            [overtone.osc :as osc]
             [quil.core :as q]
             [quil.middleware :as m])
   (:gen-class))
@@ -12,9 +13,23 @@
 (def grid-x 8)
 (def grid-y 8)
 
+(defonce ctrl-state (atom {}))
+
+(defn update-hue
+  [{:keys [args] :as msg}]
+  (let [[hue] args]
+    (when hue
+      (swap! ctrl-state assoc :hue hue))))
+
+(defonce osc-server (atom nil))
+
 (defn setup []
   (q/frame-rate 30)
   (q/color-mode :hsb 100.0)
+
+  (when (nil? @osc-server)
+    (reset! osc-server (osc/osc-server 4242)))
+  (osc/osc-handle @osc-server "/rings/hue" update-hue)
   {:now 0
    :dx  0
    :dy  0
@@ -101,7 +116,9 @@
                                      (+ z 10.0))
                       0.75)
              idx   (+ x (* y (q/width)))
-             color (q/color (mod (+ hue (* 40.0 m))
+             color (q/color (mod (+ hue
+                                    (* 40.0 m)
+                                    (:hue @ctrl-state))
                                  100)
                             saturation
                             (* 100.0
@@ -111,6 +128,9 @@
          (q/stroke 0 0 0 20)
          (q/rect (- x (/ grid-x 2))
                  (- y (/ grid-y 2))
+                 grid-x
+                 grid-y)
+         #_(q/ellipse x y
                  grid-x
                  grid-y)))
      coords)
