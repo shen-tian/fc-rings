@@ -28,7 +28,8 @@
   (q/color-mode :hsb 100.0)
 
   (when (nil? @osc-server)
-    (reset! osc-server (osc/osc-server 4242)))
+    (reset! osc-server (osc/osc-server 4242 "Rings"))
+    (osc/zero-conf-on))
   (osc/osc-handle @osc-server "/rings/hue" update-hue)
   {:now 0
    :dx  0
@@ -118,7 +119,7 @@
              idx   (+ x (* y (q/width)))
              color (q/color (mod (+ hue
                                     (* 40.0 m)
-                                    (:hue @ctrl-state))
+                                    (or (:hue @ctrl-state) 0))
                                  100)
                             saturation
                             (* 100.0
